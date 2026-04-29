@@ -2,6 +2,8 @@
 #include <pcap.h>
 #include <time.h>
 
+#include "l2_action.h"
+
 int welcome(pcap_if_t** chosen_dev, pcap_if_t* alldevs){
 
     *chosen_dev = alldevs;
@@ -44,28 +46,25 @@ int main(int argc, char* argv[]){
     const u_char* packet;
     struct pcap_pkthdr* header;
 
-    char time_buf[64], l2_buf[64];
+    char time_buf[64], l2_buf[64], l3_buf[64];
     int counter = 0;
     time_t sec;
     struct tm *tl;
-    int l2class = pcap_datalink(handle), packet_code;
+    int l2class = pcap_datalink(handle), packet_code, l3class;
     while((packet_code = pcap_next_ex(handle, &header, &packet))==1){
         sec = header->ts.tv_sec;
         tl = localtime(&sec);
         strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S", tl);
 
-        switch(l2class){
-        case 0:
-            strcpy(l2_buf,"Loopback");
-            break;
-        case 1:
-            sprintf(l2_buf, "%02X:%02X:%02X:%02X:%02X:%02X <- %02X:%02X:%02X:%02X:%02X:%02X", packet[0],
-            packet[1],packet[2],packet[3],packet[4],packet[5],packet[6],packet[7],packet[8],packet[9],packet[10],packet[11]);
-            break;
-        default:
-            strcpy(l2_buf, "Unable to convert");
-    }
+        //z l2_action
+        if(l2class<HANDLE_SIZE){
+            l3class = VISUAL_HANDLE[l2class](l2_buf,packet);
+        }
+        else {
+            l3class = VISUAL_HANDLE[HANDLE_SIZE-1](l2_buf,packet);
+        }
         printf("[%s.%06ld] | L2-frame type: %d | %s | Pakiet len: %u\n",time_buf, header->ts.tv_usec, l2class, l2_buf, header->len);
+
         if(counter++ == 9) break;
     }
     if(packet_code == 1){
